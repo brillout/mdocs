@@ -32,8 +32,7 @@ function mdocs(dir_path) {
         const menu_text = (
             templates
             .slice()
-            .filter(t => t.menu_order)
-            .sort((t1, t2) => parseInt(t1.menu_order) - parseInt(t2.menu_order))
+            .sort((t1, t2) => parseInt(t1.menu_order||0) - parseInt(t2.menu_order||0))
             .map(template => {
                 const link = template.menu_link || template.dist_path__md_relative;
                 return '['+template.menu_title+']('+link+')';
