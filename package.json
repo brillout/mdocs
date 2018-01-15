@@ -1,8 +1,8 @@
 {
   "name": "@brillout/mdocs",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "main": "./mdocs.js",
-  "bin": "./modcs.js",
+  "bin": "./mdocs.js",
   "repository": "github:brillout/mdocs",
   "dependencies": {
     "reassert": "^1.1.1"
