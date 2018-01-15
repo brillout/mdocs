@@ -1,14 +1,33 @@
+#!/usr/bin/env node
+
 const fs = require('fs');
-const assert = require('assert');
+const assert = require('reassert');
+const assert_usage = assert;
 const path_module = require('path');
 
-module.exports = mdocs;
+if( is_cli() ) {
+    mdocs();
+} else {
+    module.exports = mdocs;
+}
 
-function mdocs(dir_path) {
+function is_cli() {
+    return require.main === module;
+}
+
+function mdocs(dir_path=process.cwd()) {
+    assert_usage(dir_path.startsWith('/'), dir_path);
+
     const TEMPLATE_EXT = '.template.md';
 
     (() => {
         const templates = find_templates();
+
+        assert_usage(
+            templates.length>0,
+            "Can't find any `"+path_module.resolve(dir_path, "*.template.md")+"` file."
+        );
+
         templates
         .forEach(template => {
             add_menu(template, templates);
