@@ -76,36 +76,52 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function add_inline_code(template) {
-        template.content = (
-            template.content
-            .split('\n')
-            .map(line => {
-                const prefix = '!INLINE ';
-                if( ! line.startsWith(prefix) ) {
-                    return [line];
+
+        let content = '';
+
+        const lines = template.content.split('\n');
+
+        lines.forEach((line, i) => {
+            const prefix = '!INLINE';
+
+            if( ! line.startsWith(prefix) ) {
+                content += line;
+                if( i !== lines.length-1 ) {
+                    content += '\n';
                 }
-                const code_path = line.slice(prefix.length);
-                const code_body = (
-                    getFileContent(
-                        path_module.resolve(
-                            path_module.dirname(template.template_path),
-                            code_path,
-                        )
+                return;
+            }
+
+            const argv = line.split(' ');
+            assert_usage(argv[0]===prefix);
+
+            const file_path = argv[1];
+
+            const file_content = (
+                getFileContent(
+                    path_module.resolve(
+                        path_module.dirname(template.template_path),
+                        file_path,
                     )
-                    .replace(/\n$/,'')
-                );
-                const code_content = (
+                )
+                .replace(/\n+$/,'')
+            );
+
+            const code_include_path = ! argv.includes('--hide-source-path');
+            if( code_include_path ) {
+                content += (
                     [
-                        '// /'+path_module.relative('..', code_path),
+                        '// /'+path_module.relative('..', file_path),
                         '',
-                        ...(code_body.split('\n')),
-                    ]
+                        '',
+                    ].join('\n')
                 );
-                return code_content;
-            })
-            .reduce(flatten)
-            .join('\n')
-        );
+            }
+
+            content += file_content + '\n';
+        });
+
+        template.content = content;
     }
 
     function add_edit_note(template) {
