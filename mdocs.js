@@ -4,6 +4,7 @@ const fs = require('fs');
 const assert = require('reassert');
 const assert_usage = assert;
 const path_module = require('path');
+const find_up = require('find-up');
 
 if( is_cli() ) {
     mdocs();
@@ -23,6 +24,8 @@ function mdocs(dir_path=process.cwd()) {
     (() => {
         const templates = find_templates();
 
+        const package_info = get_package_info();
+
         assert_usage(
             templates.length>0,
             "Can't find any `"+path_module.resolve(dir_path, "*.template.md")+"` file."
@@ -32,13 +35,21 @@ function mdocs(dir_path=process.cwd()) {
         .forEach(template => {
             add_menu(template, templates);
             add_inline_code(template);
-            replace_package_paths(template);
+         // replace_package_paths(template);
+            resolve_package_path(template, package_info);
             add_edit_note(template);
             write_content(template);
         });
     })();
 
     return;
+
+    function get_package_info() {
+        const package_json_path = find_up.sync('package.json', {cwd: dir_path});
+        const package_json = require(package_json_path);
+        package_json.absolute_path = path_module.dirname(package_json_path);
+        return package_json;
+    }
 
     function add_menu(template, templates) {
         const prefix = '!MENU';
@@ -135,12 +146,11 @@ function mdocs(dir_path=process.cwd()) {
         ].join('\n');
     }
 
+    /*
     function replace_package_paths(template) {
         [
-            /*
-            'reprop',
-            'react-reprop',
-            */
+         // 'reprop',
+         // 'react-reprop',
             {
                 path_end: 'stores/Items',
                 replace_with: '../stores/Items',
@@ -161,6 +171,17 @@ function mdocs(dir_path=process.cwd()) {
         });
 
         return template.content;
+    }
+    */
+
+    function resolve_package_path(template, package_info) {
+        const rel_path = path_module.relative(template.template_path, package_info.absolute_path);
+
+        const regex_require = new RegExp("require\\('"+rel_path+"'\\)", 'g');
+        template.content = template.content.replace(regex_require, "require('"+package_info.name+"')");
+
+        const regex_import = new RegExp(" from '"+rel_path+"'", 'g');
+        template.content = template.content.replace(regex_import, " from '"+package_info.name+"'");
     }
 
     function write_content(template) {
