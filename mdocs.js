@@ -3,6 +3,7 @@
 const fs = require('fs');
 const assert = require('reassert');
 const assert_usage = assert;
+const assert_internal = assert;
 const path_module = require('path');
 const find_up = require('find-up');
 
@@ -22,9 +23,10 @@ function mdocs(dir_path=process.cwd()) {
     const TEMPLATE_EXT = '.template.md';
 
     (() => {
-        const templates = find_templates();
-
         const package_info = get_package_info();
+        const git_info = get_git_info();
+
+        const templates = find_templates(git_info);
 
         assert_usage(
             templates.length>0,
@@ -46,9 +48,16 @@ function mdocs(dir_path=process.cwd()) {
 
     function get_package_info() {
         const package_json_path = find_up.sync('package.json', {cwd: dir_path});
-        const package_json = require(package_json_path);
-        package_json.absolute_path = path_module.dirname(package_json_path);
-        return package_json;
+        const package_info = require(package_json_path);
+        const absolute_path = path_module.dirname(package_json_path);
+        package_info.absolute_path = absolute_path;
+        return package_info;
+    }
+
+    function get_git_info() {
+        const git_root_path = find_up.sync('.git', {cwd: dir_path});
+        const absolute_path = path_module.dirname(git_root_path);
+        return {absolute_path};
     }
 
     function add_menu(template, templates) {
@@ -136,7 +145,7 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function add_edit_note(template) {
-        const EDIT_NOTE = gen_edit_note(template.source_path__md_relative);
+        const EDIT_NOTE = gen_edit_note(template.template_path__md_relative);
 
         template.content = [
             EDIT_NOTE,
@@ -186,7 +195,7 @@ function mdocs(dir_path=process.cwd()) {
 
     function write_content(template) {
         fs.writeFileSync(
-            template.dist_path_relative,
+            template.dist_path,
             template.content,
         );
     }
@@ -220,22 +229,20 @@ function mdocs(dir_path=process.cwd()) {
         );
     }
 
-    function find_templates() {
+    function find_templates(git_info) {
         return (
             fs.readdirSync(dir_path)
             .filter(filename => filename.endsWith(TEMPLATE_EXT))
-            .map(template_path_relative => {
-                const template_path = path_module.join(dir_path, template_path_relative)
-                if( !template_path.endsWith(TEMPLATE_EXT) ) {
-                    throw new Error('Should end with '+TEMPLATE_EXT);
-                }
+            .map(template_path__relative => {
+                const template_path = path_module.join(dir_path, template_path__relative)
+                assert_internal(template_path.endsWith(TEMPLATE_EXT));
                 let content = getFileContent(template_path);
 
-                const output = get_info('OUTPUT');
+                const output_filename = get_info('OUTPUT');
 
-                const dist_path_relative = distify(template_path);
-                const dist_path__md_relative = make_path_md_absolute(distify(template_path_relative));
-                const source_path__md_relative = make_path_md_absolute(template_path_relative);
+                const dist_path = distify(template_path);
+                const dist_path__md_relative = make_relative_to_package_root(dist_path);
+                const template_path__md_relative = make_relative_to_package_root(template_path);
                 const filename_base = path_module.basename(template_path).split('.')[0];
 
                 const menu_order = get_info('MENU_ORDER');
@@ -247,33 +254,36 @@ function mdocs(dir_path=process.cwd()) {
 
                 return {
                     template_path,
-                    template_path_relative,
                     content,
-                    dist_path_relative,
+                    dist_path,
                     dist_path__md_relative,
-                    source_path__md_relative,
+                    template_path__md_relative,
                     filename_base,
                     menu_order,
                     menu_link,
                     menu_title,
-                    output,
+                    output_filename,
                 };
 
                 function distify(path) {
-                    const path_without_template_suffix = path.slice(0, -TEMPLATE_EXT.length)+'.md';
-                    if( ! output ) {
+                    if( ! output_filename ) {
+                        const path_without_template_suffix = path.slice(0, -TEMPLATE_EXT.length)+'.md';
                         return path_without_template_suffix;
+                    } else {
+                        const source_dir = path_module.dirname(path);
+                        return path_module.resolve(source_dir, output_filename);
                     }
-                    const source_dir = path_module.dirname(path);
-                    const output_filename = output;
-                    return path_module.resolve(source_dir, output_filename);
-                 // const output_dir = output;
-                 // const output_filename = path_module.basename(path_without_template_suffix);
-                 // return path_module.resolve(source_dir, output_dir, output_filename);
                 }
 
-                function make_path_md_absolute(path_relative) {
-                    return '/'+path_module.join('docs', path_relative);
+                function make_relative_to_package_root(file_path) {
+                    const file_path__relative = path_module.relative(git_info.absolute_path, file_path);
+                    assert_internal(!file_path__relative.startsWith('.'), git_info.absolute_path, file_path__relative, file_path);
+                    const file_path__md_relative = (
+                        file_path__relative
+                        .split(path_module.sep)
+                        .join('/')
+                    );
+                    return '/'+file_path__md_relative;
                 }
 
                 function get_info(token) {
