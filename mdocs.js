@@ -36,9 +36,8 @@ function mdocs(dir_path=process.cwd()) {
         templates
         .forEach(template => {
             add_menu(template, templates);
-            add_inline_code(template);
+            add_inline_code(template, package_info);
          // replace_package_paths(template);
-            resolve_package_path(template, package_info);
             add_edit_note(template);
             write_content(template);
         });
@@ -95,7 +94,7 @@ function mdocs(dir_path=process.cwd()) {
         }
     }
 
-    function add_inline_code(template) {
+    function add_inline_code(template, package_info) {
 
         let content = '';
 
@@ -115,15 +114,17 @@ function mdocs(dir_path=process.cwd()) {
             const argv = line.split(' ');
             assert_usage(argv[0]===prefix);
 
-            const file_path = argv[1];
+            const file_path__relative = argv[1];
 
-            const file_content = (
-                getFileContent(
-                    path_module.resolve(
-                        path_module.dirname(template.template_path),
-                        file_path,
-                    )
+            const file_path = (
+                path_module.resolve(
+                    path_module.dirname(template.template_path),
+                    file_path__relative,
                 )
+            );
+
+            let file_content = (
+                getFileContent(file_path)
                 .replace(/\n+$/,'')
             );
 
@@ -131,17 +132,32 @@ function mdocs(dir_path=process.cwd()) {
             if( code_include_path ) {
                 content += (
                     [
-                        '// /'+path_module.relative('..', file_path),
+                        '// /'+path_module.relative(package_info.absolute_path, file_path__relative),
                         '',
                         '',
                     ].join('\n')
                 );
             }
 
+            file_content = resolve_package_path(file_path, file_content, package_info);
+
             content += file_content + '\n';
         });
 
         template.content = content;
+    }
+
+    function resolve_package_path(file_path, file_content, package_info) {
+        const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path);
+
+        console.log(file_path, package_info.absolute_path, rel_path);
+        const regex_require = new RegExp("require\\('"+rel_path+"'\\)", 'g');
+        file_content = file_content.replace(regex_require, "require('"+package_info.name+"')");
+
+        const regex_import = new RegExp(" from '"+rel_path+"'", 'g');
+        file_content = file_content.replace(regex_import, " from '"+package_info.name+"'");
+
+        return file_content;
     }
 
     function add_edit_note(template) {
@@ -182,16 +198,6 @@ function mdocs(dir_path=process.cwd()) {
         return template.content;
     }
     */
-
-    function resolve_package_path(template, package_info) {
-        const rel_path = path_module.relative(template.template_path, package_info.absolute_path);
-
-        const regex_require = new RegExp("require\\('"+rel_path+"'\\)", 'g');
-        template.content = template.content.replace(regex_require, "require('"+package_info.name+"')");
-
-        const regex_import = new RegExp(" from '"+rel_path+"'", 'g');
-        template.content = template.content.replace(regex_import, " from '"+package_info.name+"'");
-    }
 
     function write_content(template) {
         fs.writeFileSync(
