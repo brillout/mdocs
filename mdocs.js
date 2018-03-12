@@ -46,8 +46,15 @@ function mdocs(dir_path=process.cwd()) {
     return;
 
     function get_package_info() {
-        const package_json_path = find_up.sync('package.json', {cwd: dir_path});
+        return get_public_package_info(dir_path)
+    }
+    function get_public_package_info(cwd) {
+        const package_json_path = find_up.sync('package.json', {cwd});
+        assert_internal(package_json_path, cwd);
         const package_info = require(package_json_path);
+        if( package_info.private && ! package_info.workspaces ) {
+            return get_public_package_info(path_module.dirname(cwd));
+        }
         const absolute_path = path_module.dirname(package_json_path);
         package_info.absolute_path = absolute_path;
         return package_info;
@@ -129,10 +136,11 @@ function mdocs(dir_path=process.cwd()) {
             );
 
             const code_include_path = ! argv.includes('--hide-source-path');
+            const code_path = path_module.relative(package_info.absolute_path, file_path);
             if( code_include_path ) {
                 content += (
                     [
-                        '// /'+path_module.relative(package_info.absolute_path, file_path__relative),
+                        '// /'+code_path,
                         '',
                         '',
                     ].join('\n')
@@ -150,7 +158,7 @@ function mdocs(dir_path=process.cwd()) {
     function resolve_package_path(file_path, file_content, package_info) {
         const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path);
 
-        console.log(file_path, package_info.absolute_path, rel_path);
+     // console.log(file_path, package_info.absolute_path, rel_path);
         const regex_require = new RegExp("require\\('"+rel_path+"'\\)", 'g');
         file_content = file_content.replace(regex_require, "require('"+package_info.name+"')");
 
