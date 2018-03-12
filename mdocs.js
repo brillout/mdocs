@@ -78,9 +78,13 @@ function mdocs(dir_path=process.cwd()) {
             templates
             .slice()
             .sort((t1, t2) => parseInt(t1.menu_order||0) - parseInt(t2.menu_order||0))
-            .map(template => {
-                const link = template.menu_link || template.dist_path__md_relative;
-                return '['+template.menu_title+']('+link+')';
+            .map(template__menu_item => {
+                const link_url = template__menu_item.menu_link || template__menu_item.dist_path__md_relative;
+                let link_title = template__menu_item.menu_title;
+                if( template__menu_item === template ) {
+                    link_title = "**"+link_title+"**";
+                }
+                return '['+link_title+']('+link_url+')';
             })
             .join('<br/>\n')
         );
