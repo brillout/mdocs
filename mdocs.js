@@ -8,7 +8,15 @@ const path_module = require('path');
 const find_up = require('find-up');
 
 if( is_cli() ) {
-    mdocs();
+    const cliArg = process.argv[2];
+    const dir_path = (
+        cliArg && !cliArg.startsWith('-') ? (
+            path_module.resolve(process.cwd(), cliArg)
+        ) : (
+            undefined
+        )
+    );
+    mdocs(dir_path);
 } else {
     module.exports = mdocs;
 }
