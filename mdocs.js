@@ -168,9 +168,11 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function resolve_package_path(file_path, file_content, package_info) {
-        const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path);
+        const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path) || '.';
+        assert_internal(rel_path);
 
      // console.log(file_path, package_info.absolute_path, rel_path);
+
         const regex_require = new RegExp("require\\('"+rel_path+"'\\)", 'g');
         file_content = file_content.replace(regex_require, "require('"+package_info.name+"')");
 
