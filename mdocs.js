@@ -32,6 +32,9 @@ function mdocs(dir_path=process.cwd()) {
 
     (() => {
         const package_info = get_package_info();
+        const monorepo_package_info = get_monorepo_pacakge_info();
+        assert_usage(package_info || monorepo_package_info);
+
         const git_info = get_git_info();
 
         const templates = find_templates(git_info);
@@ -44,7 +47,7 @@ function mdocs(dir_path=process.cwd()) {
         templates
         .forEach(template => {
             add_menu(template, templates);
-            add_inline_code(template, package_info);
+            add_inline_code(template, package_info, monorepo_package_info);
          // replace_package_paths(template);
             add_edit_note(template);
             write_content(template);
@@ -54,14 +57,24 @@ function mdocs(dir_path=process.cwd()) {
     return;
 
     function get_package_info() {
-        return get_public_package_info(dir_path)
-    }
-    function get_public_package_info(cwd) {
-        const package_json_path = find_up.sync('package.json', {cwd});
-        assert_internal(package_json_path, cwd);
+        const package_json_path = find_up.sync('package.json', {cwd: dir_path});
+        assert_internal(package_json_path, dir_path);
         const package_info = require(package_json_path);
-        if( package_info.private && ! package_info.workspaces ) {
-            return get_public_package_info(path_module.dirname(cwd));
+        if( package_info.private || package_info.workspaces ) {
+            return null;
+        }
+        const absolute_path = path_module.dirname(package_json_path);
+        package_info.absolute_path = absolute_path;
+        return package_info;
+    }
+    function get_monorepo_pacakge_info(cwd=dir_path) {
+        const package_json_path = find_up.sync('package.json', {cwd});
+        if( ! package_json_path ) {
+            return null;
+        }
+        const package_info = require(package_json_path);
+        if( ! package_info.workspaces ) {
+            return get_monorepo_pacakge_info(path_module.dirname(path_module.dirname(package_json_path)));
         }
         const absolute_path = path_module.dirname(package_json_path);
         package_info.absolute_path = absolute_path;
@@ -113,7 +126,7 @@ function mdocs(dir_path=process.cwd()) {
         }
     }
 
-    function add_inline_code(template, package_info) {
+    function add_inline_code(template, package_info, monorepo_package_info) {
 
         let content = '';
 
@@ -148,7 +161,9 @@ function mdocs(dir_path=process.cwd()) {
             );
 
             const code_include_path = ! argv.includes('--hide-source-path');
-            const code_path = path_module.relative(package_info.absolute_path, file_path);
+            const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
+            assert_internal(repo_base);
+            const code_path = path_module.relative(repo_base, file_path);
             if( code_include_path ) {
                 content += (
                     [
@@ -168,6 +183,10 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function resolve_package_path(file_path, file_content, package_info) {
+        if( package_info===null ) {
+            return file_content;
+        }
+
         const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path) || '.';
         assert_internal(rel_path);
 
