@@ -6,6 +6,7 @@ const assert_usage = assert;
 const assert_internal = assert;
 const path_module = require('path');
 const find_up = require('find-up');
+const findPackageFiles = require('@brillout/find-package-files');
 
 if( is_cli() ) {
     const cliArg = process.argv[2];
@@ -278,10 +279,8 @@ function mdocs(dir_path=process.cwd()) {
 
     function find_templates(git_info) {
         return (
-            fs.readdirSync(dir_path)
-            .filter(filename => filename.endsWith(TEMPLATE_EXT))
-            .map(template_path__relative => {
-                const template_path = path_module.join(dir_path, template_path__relative)
+            findPackageFiles('*'+TEMPLATE_EXT, {cwd: dir_path})
+            .map(template_path => {
                 assert_internal(template_path.endsWith(TEMPLATE_EXT));
                 let content = getFileContent(template_path);
 
