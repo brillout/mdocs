@@ -137,7 +137,7 @@ function mdocs(dir_path=process.cwd()) {
         lines.forEach((line, i) => {
             const prefix = '!INLINE';
 
-            if( ! line.startsWith(prefix) ) {
+            if( ! line.includes(' '+prefix+' ') && ! line.startsWith(prefix+' ') ) {
                 content += line;
                 if( i !== lines.length-1 ) {
                     content += '\n';
@@ -145,10 +145,13 @@ function mdocs(dir_path=process.cwd()) {
                 return;
             }
 
-            const argv = line.split(' ');
-            assert_usage(argv[0]===prefix);
+            const words = line.split(' ');
+            const prefix_idx = words.findIndex(word => word===prefix);
+            assert_internal(prefix_idx>=0);
+            const argv = words.slice(prefix_idx+1);
+            assert_usage(argv.length>0);
 
-            const file_path__relative = argv[1];
+            const file_path__relative = argv[0];
 
             const file_path = (
                 path_module.resolve(
@@ -157,28 +160,33 @@ function mdocs(dir_path=process.cwd()) {
                 )
             );
 
-            let file_content = (
-                getFileContent(file_path)
-                .replace(/\n+$/,'')
-            );
+            let file_content = getFileContent(file_path);
+            file_content = file_content.replace(/\n+$/,'');
+            argv.forEach((arg, i) => file_content = file_content.replace('!ARGUMENT-'+i, arg));
 
-            const code_include_path = ! argv.includes('--hide-source-path');
-            const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
-            assert_internal(repo_base);
-            const code_path = path_module.relative(repo_base, file_path);
-            if( code_include_path ) {
-                content += (
-                    [
-                        '// /'+code_path,
-                        '',
-                        '',
-                    ].join('\n')
-                );
+            let new_content;
+            if( ! line.startsWith(prefix) ) {
+                new_content = line.split(prefix)[0] + file_content;
+            }
+            else {
+                const code_include_path = ! argv.includes('--hide-source-path');
+                const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
+                assert_internal(repo_base);
+                const code_path = path_module.relative(repo_base, file_path);
+                if( code_include_path ) {
+                    content += (
+                        [
+                            '// /'+code_path,
+                            '',
+                            '',
+                        ].join('\n')
+                    );
+                }
+
+                new_content = resolve_package_path(file_path, file_content, package_info);
             }
 
-            file_content = resolve_package_path(file_path, file_content, package_info);
-
-            content += file_content + '\n';
+            content += new_content + '\n';
         });
 
         template.content = content;
