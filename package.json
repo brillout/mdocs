@@ -1,6 +1,6 @@
 {
   "name": "@brillout/mdocs",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "main": "./mdocs.js",
   "bin": "./mdocs.js",
   "repository": "github:brillout/mdocs",
