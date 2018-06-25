@@ -89,28 +89,16 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function add_menu(template, templates) {
-        const prefix = '!MENU';
+        const menu_token = '!MENU';
         const lines = template.content.split('\n');
         const menu_line = lines.filter(is_menu_line);
         assert(menu_line.length<=1);
         if( menu_line.length===0 ) {
             return;
         }
-        const menu_text = (
-            templates
-            .slice()
-            .filter(template => !template.menu_skip)
-            .sort((t1, t2) => parseInt(t1.menu_order||0) - parseInt(t2.menu_order||0))
-            .map(template__menu_item => {
-                const link_url = template__menu_item.menu_link || template__menu_item.dist_path__md_relative;
-                let link_title = template__menu_item.menu_title;
-                if( template__menu_item === template ) {
-                    link_title = "**"+link_title+"**";
-                }
-                return '['+link_title+']('+link_url+')';
-            })
-            .join('<br/>\n')
-        );
+
+        const menu_text = get_menu_text(template, templates);
+
         template.content = (
             lines
             .map(line => {
@@ -122,10 +110,52 @@ function mdocs(dir_path=process.cwd()) {
             .join('\n')
         )
         function is_menu_line(line) {
-            const is_hit = line===prefix;
-            assert(is_hit || line.indexOf(prefix)===-1);
+            const is_hit = line===menu_token;
+            assert(is_hit || line.indexOf(menu_token)===-1);
             return is_hit;
         }
+    }
+
+    function get_menu_text(template, templates) {
+        const templates_ordered = (
+            templates
+            .slice()
+            .sort((t1, t2) => parseInt(t1.menu_order||0) - parseInt(t2.menu_order||0))
+        );
+
+        const menu_lines = [];
+        templates_ordered
+        .forEach((template__current, i) => {
+            if( template__current.menu_skip ) {
+                return;
+            }
+            const link_url = template__current.menu_link || template__current.dist_path__md_relative;
+            let link_title = template__current.menu_title;
+            if( template__current === template ) {
+                link_title = "**"+link_title+"**";
+            }
+            const link = '['+link_title+']('+link_url+')';
+
+            const {menu_section} = template__current;
+
+            if( ! menu_section ) {
+                menu_lines.push(link);
+            } else {
+                const template__prev = templates_ordered[i-1]||{};
+                const is_first = template__prev.menu_section !== menu_section;
+                if( is_first ) {
+                    menu_lines.push(menu_section);
+                }
+                const last_line_idx = menu_lines.length-1;
+                const last_line = menu_lines[last_line_idx];
+                menu_lines[last_line_idx] = last_line+(is_first?': ':' | ')+link;
+            }
+        })
+
+        const menu_text = menu_lines.join('<br/>\n');
+
+        return menu_text;
+
     }
 
     function add_inline_code(template, package_info, monorepo_package_info) {
@@ -135,9 +165,9 @@ function mdocs(dir_path=process.cwd()) {
         const lines = template.content.split('\n');
 
         lines.forEach((line, i) => {
-            const prefix = '!INLINE';
+            const inline_token = '!INLINE';
 
-            if( ! line.includes(' '+prefix+' ') && ! line.startsWith(prefix+' ') ) {
+            if( ! line.includes(' '+inline_token+' ') && ! line.startsWith(inline_token+' ') ) {
                 content += line;
                 if( i !== lines.length-1 ) {
                     content += '\n';
@@ -146,7 +176,7 @@ function mdocs(dir_path=process.cwd()) {
             }
 
             const words = line.split(' ');
-            const prefix_idx = words.findIndex(word => word===prefix);
+            const prefix_idx = words.findIndex(word => word===inline_token);
             assert_internal(prefix_idx>=0);
             const argv = words.slice(prefix_idx+1);
             assert_usage(argv.length>0);
@@ -165,8 +195,8 @@ function mdocs(dir_path=process.cwd()) {
             argv.forEach((arg, i) => file_content = file_content.replace('!ARGUMENT-'+i, arg));
 
             let new_content;
-            if( ! line.startsWith(prefix) ) {
-                new_content = line.split(prefix)[0] + file_content;
+            if( ! line.startsWith(inline_token) ) {
+                new_content = line.split(inline_token)[0] + file_content;
             }
             else {
                 const code_include_path = ! argv.includes('--hide-source-path');
@@ -303,6 +333,7 @@ function mdocs(dir_path=process.cwd()) {
                 const menu_order = get_token_argument('MENU_ORDER');
                 const menu_link = get_token_argument('MENU_LINK');
                 const menu_skip = get_token_argument('MENU_SKIP');
+                const menu_section = get_token_argument('MENU_SECTION');
 
                 let menu_title = get_token_argument('MENU_TITLE');
                 if( menu_title === null ) {
@@ -320,6 +351,7 @@ function mdocs(dir_path=process.cwd()) {
                     menu_link,
                     menu_title,
                     menu_skip,
+                    menu_section,
                     output_filename,
                 };
 
