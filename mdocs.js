@@ -170,18 +170,26 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function add_inline_code(template, package_info, monorepo_package_info) {
+        template.content = apply_inline({
+            content: template.content,
+            context_path: template.template_path,
+            package_info,
+            monorepo_package_info,
+        });
+    }
 
-        let content = '';
+    function apply_inline({content, context_path, package_info, monorepo_package_info}) {
+        let content__new = '';
 
-        const lines = template.content.split('\n');
+        const lines = content.split('\n');
 
         lines.forEach((line, i) => {
             const inline_token = '!INLINE';
 
             if( ! line.includes(' '+inline_token+' ') && ! line.startsWith(inline_token+' ') ) {
-                content += line;
+                content__new += line;
                 if( i !== lines.length-1 ) {
-                    content += '\n';
+                    content__new += '\n';
                 }
                 return;
             }
@@ -196,7 +204,7 @@ function mdocs(dir_path=process.cwd()) {
 
             const file_path = (
                 path_module.resolve(
-                    path_module.dirname(template.template_path),
+                    path_module.dirname(context_path),
                     file_path__relative,
                 )
             );
@@ -204,6 +212,12 @@ function mdocs(dir_path=process.cwd()) {
             let file_content = getFileContent(file_path);
             file_content = file_content.replace(/\n+$/,'');
             argv.forEach((arg, i) => file_content = file_content.replace('!ARGUMENT-'+i, arg));
+            file_content = apply_inline({
+                content: file_content,
+                context_path: file_path,
+                package_info,
+                monorepo_package_info,
+            });
 
             let new_content;
             if( ! line.startsWith(inline_token) ) {
@@ -215,7 +229,7 @@ function mdocs(dir_path=process.cwd()) {
                 assert_internal(repo_base);
                 const code_path = path_module.relative(repo_base, file_path);
                 if( code_include_path ) {
-                    content += (
+                    content__new += (
                         [
                             '// /'+code_path,
                             '',
@@ -227,10 +241,10 @@ function mdocs(dir_path=process.cwd()) {
                 new_content = resolve_package_path(file_path, file_content, package_info);
             }
 
-            content += new_content + '\n';
+            content__new += new_content + '\n';
         });
 
-        template.content = content;
+        return content__new;
     }
 
     function resolve_package_path(file_path, file_content, package_info) {
