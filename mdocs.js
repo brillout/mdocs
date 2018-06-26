@@ -123,7 +123,7 @@ function mdocs(dir_path=process.cwd()) {
             .sort((t1, t2) => parseInt(t1.menu_order||0) - parseInt(t2.menu_order||0))
         );
 
-        const menu_lines = [];
+        let menu_lines = [];
         templates_ordered
         .forEach((template__current, i) => {
             if( template__current.menu_skip ) {
@@ -148,9 +148,20 @@ function mdocs(dir_path=process.cwd()) {
                 }
                 const last_line_idx = menu_lines.length-1;
                 const last_line = menu_lines[last_line_idx];
-                menu_lines[last_line_idx] = last_line+(is_first?': ':' | ')+link;
+                const separator = is_first && menu_section && ': ' || !is_first && ' | ' || '';
+                menu_lines[last_line_idx] = last_line+separator+link;
             }
-        })
+        });
+
+        const {menu_indent} = template;
+        if( menu_indent ) {
+            menu_lines = menu_lines.map(line => {
+                for(let i=0; i < menu_indent; i++) {
+                    line = '&nbsp; '+line;
+                }
+                return line;
+            });
+        }
 
         const menu_text = menu_lines.join('<br/>\n');
 
@@ -330,6 +341,7 @@ function mdocs(dir_path=process.cwd()) {
                 const template_path__md_relative = make_relative_to_package_root(template_path);
                 const filename_base = path_module.basename(template_path).split('.')[0];
 
+                const menu_indent = get_token_argument('MENU_INDENT');
                 const menu_order = get_token_argument('MENU_ORDER');
                 const menu_link = get_token_argument('MENU_LINK');
                 const menu_skip = get_token_argument('MENU_SKIP');
@@ -351,6 +363,7 @@ function mdocs(dir_path=process.cwd()) {
                     menu_link,
                     menu_title,
                     menu_skip,
+                    menu_indent,
                     menu_section,
                     output_filename,
                 };
