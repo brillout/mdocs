@@ -186,7 +186,7 @@ function mdocs(dir_path=process.cwd()) {
         lines.forEach((line, i) => {
             const inline_token = '!INLINE';
 
-            if( ! line.includes(' '+inline_token+' ') && ! line.startsWith(inline_token+' ') ) {
+            if( ! line.startsWith(inline_token+' ') ) {
                 content__new += line;
                 if( i !== lines.length-1 ) {
                     content__new += '\n';
@@ -219,29 +219,14 @@ function mdocs(dir_path=process.cwd()) {
                 monorepo_package_info,
             });
 
-            let new_content;
-            if( ! line.startsWith(inline_token) ) {
-                new_content = line.split(inline_token)[0] + file_content;
-            }
-            else {
-                const code_include_path = ! argv.includes('--hide-source-path');
+            if( ! argv.includes('--hide-source-path') ) {
                 const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
                 assert_internal(repo_base);
                 const code_path = path_module.relative(repo_base, file_path);
-                if( code_include_path ) {
-                    content__new += (
-                        [
-                            '// /'+code_path,
-                            '',
-                            '',
-                        ].join('\n')
-                    );
-                }
-
-                new_content = resolve_package_path(file_path, file_content, package_info);
+                content__new += '// /'+code_path+'\n\n';
             }
 
-            content__new += new_content + '\n';
+            content__new += resolve_package_path(file_path, file_content, package_info) + '\n';
         });
 
         return content__new;
