@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const assert = require('reassert');
-const assert_usage = assert;
-const assert_internal = assert;
+const assert_usage = require('reassert/usage');
+const assert_internal = require('reassert/internal');
+const assert = assert_internal;
 const path_module = require('path');
 const find_up = require('find-up');
 const findPackageFiles = require('@brillout/find-package-files');
@@ -60,26 +60,23 @@ function mdocs(dir_path=process.cwd()) {
     function get_package_info() {
         const package_json_path = find_up.sync('package.json', {cwd: dir_path});
         assert_internal(package_json_path, dir_path);
-        const package_info = require(package_json_path);
-        if( package_info.private || package_info.workspaces ) {
-            return null;
-        }
+        const pkg_info = require(package_json_path);
         const absolute_path = path_module.dirname(package_json_path);
-        package_info.absolute_path = absolute_path;
-        return package_info;
+        pkg_info.absolute_path = absolute_path;
+        return pkg_info;
     }
     function get_monorepo_pacakge_info(cwd=dir_path) {
         const package_json_path = find_up.sync('package.json', {cwd});
         if( ! package_json_path ) {
             return null;
         }
-        const package_info = require(package_json_path);
-        if( ! package_info.workspaces ) {
+        const pkg_info = require(package_json_path);
+        if( ! pkg_info.workspaces ) {
             return get_monorepo_pacakge_info(path_module.dirname(path_module.dirname(package_json_path)));
         }
         const absolute_path = path_module.dirname(package_json_path);
-        package_info.absolute_path = absolute_path;
-        return package_info;
+        pkg_info.absolute_path = absolute_path;
+        return pkg_info;
     }
 
     function get_git_info() {
@@ -233,7 +230,7 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function resolve_package_path(file_path, file_content, package_info) {
-        if( package_info===null ) {
+        if( package_info.private ) {
             return file_content;
         }
 
