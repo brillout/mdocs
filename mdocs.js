@@ -48,7 +48,7 @@ function mdocs(dir_path=process.cwd()) {
         templates
         .forEach(template => {
             add_menu(template, templates);
-            add_inline_code(template, package_info, monorepo_package_info);
+            add_inline_code({template, package_info, monorepo_package_info, git_info});
          // replace_package_paths(template);
             add_edit_note(template);
             write_content(template);
@@ -166,16 +166,17 @@ function mdocs(dir_path=process.cwd()) {
 
     }
 
-    function add_inline_code(template, package_info, monorepo_package_info) {
+    function add_inline_code({template, package_info, monorepo_package_info, git_info}) {
         template.content = apply_inline({
             content: template.content,
             context_path: template.template_path,
             package_info,
             monorepo_package_info,
+            git_info,
         });
     }
 
-    function apply_inline({content, context_path, package_info, monorepo_package_info}) {
+    function apply_inline({content, context_path, package_info, monorepo_package_info, git_info}) {
         let content__new = '';
 
         const lines = content.split('\n');
@@ -197,12 +198,19 @@ function mdocs(dir_path=process.cwd()) {
             const argv = words.slice(prefix_idx+1);
             assert_usage(argv.length>0);
 
-            const file_path__relative = argv[0];
+            const file_path__spec = argv[0];
 
             const file_path = (
-                path_module.resolve(
-                    path_module.dirname(context_path),
-                    file_path__relative,
+                file_path__spec.startsWith('/') ? (
+                    path_module.join(
+                        git_info.absolute_path,
+                        file_path__spec,
+                    )
+                ) : (
+                    path_module.resolve(
+                        path_module.dirname(context_path),
+                        file_path__spec,
+                    )
                 )
             );
 
