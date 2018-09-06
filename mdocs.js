@@ -7,6 +7,7 @@ const assert = assert_internal;
 const path_module = require('path');
 const find_up = require('find-up');
 const findPackageFiles = require('@brillout/find-package-files');
+const escapeRegexp = require('lodash.escaperegexp');
 
 if( is_cli() ) {
     const cliArg = process.argv[2];
@@ -216,7 +217,10 @@ function mdocs(dir_path=process.cwd()) {
 
             let file_content = getFileContent(file_path);
             file_content = file_content.replace(/\n+$/,'');
-            argv.forEach((arg, i) => file_content = file_content.replace('!ARGUMENT-'+i, arg));
+            argv.forEach((arg, i) => {
+                const argRegexp = new RegExp(escapeRegexp('!ARGUMENT-'+i), 'g');
+                file_content = file_content.replace(argRegexp, arg)
+            });
             file_content = apply_inline({
                 content: file_content,
                 context_path: file_path,
