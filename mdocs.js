@@ -129,10 +129,17 @@ function mdocs(dir_path=process.cwd()) {
             }
             const link_url = template__current.menu_link || template__current.dist_path__md_relative;
             let link_title = template__current.menu_title;
+
+            if( template__current === template ) {
+                link_title = "<b>"+link_title+"</b>";
+            }
+            const link = '<a href="'+link_url+'#readme">'+link_title+'</a>';
+            /*
             if( template__current === template ) {
                 link_title = "**"+link_title+"**";
             }
             const link = '['+link_title+']('+link_url+')';
+            */
 
             const {menu_section} = template__current;
 
@@ -151,6 +158,21 @@ function mdocs(dir_path=process.cwd()) {
             }
         });
 
+        if( true ) {
+            let menu_text = "";
+            menu_text += "<p align='center'>";
+            menu_lines.map((line, i) => {
+                const isLastLine = i===menu_lines.length-1;
+                menu_text += line;
+                if( ! isLastLine ) {
+                    menu_text += " &nbsp; | &nbsp; ";
+                }
+            });
+            menu_text += "</p>";
+            return menu_text;
+        }
+
+        /*
         const {menu_indent} = template;
         if( menu_indent ) {
             menu_lines = menu_lines.map(line => {
@@ -164,6 +186,7 @@ function mdocs(dir_path=process.cwd()) {
         const menu_text = menu_lines.join('<br/>\n');
 
         return menu_text;
+        */
 
     }
 
