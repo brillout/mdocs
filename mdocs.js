@@ -216,13 +216,10 @@ function mdocs(dir_path=process.cwd()) {
                 return;
             }
 
-            const words = line.split(' ');
-            const prefix_idx = words.findIndex(word => word===inline_token);
-            assert_internal(prefix_idx>=0);
-            const argv = words.slice(prefix_idx+1);
-            assert_usage(argv.length>0);
+            const {inputs, opts} = parseCommandLine(line);
 
-            const file_path__spec = argv[0];
+            const file_path__spec = inputs[0];
+            assert_usage(file_path__spec, line);
 
             const file_path = (
                 file_path__spec.startsWith('/') ? (
@@ -240,7 +237,7 @@ function mdocs(dir_path=process.cwd()) {
 
             let file_content = getFileContent(file_path);
             file_content = file_content.replace(/\n+$/,'');
-            argv.forEach((arg, i) => {
+            inputs.forEach((arg, i) => {
                 const argRegexp = new RegExp(escapeRegexp('!ARGUMENT-'+i), 'g');
                 file_content = file_content.replace(argRegexp, arg)
             });
@@ -251,7 +248,7 @@ function mdocs(dir_path=process.cwd()) {
                 monorepo_package_info,
             });
 
-            if( ! argv.includes('--hide-source-path') ) {
+            if( ! opts['--hide-source-path'] ) {
                 const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
                 assert_internal(repo_base);
                 const code_path = path_module.relative(repo_base, file_path);
@@ -262,6 +259,22 @@ function mdocs(dir_path=process.cwd()) {
         });
 
         return content__new;
+    }
+
+    function parseCommandLine(line) {
+        const words = line.split(' ');
+        const command = words.shift();
+        const opts = {};
+        const inputs = [];
+        words.forEach(word => {
+            if( word.startsWith('--') ) {
+                opts[word] = true;
+            } else {
+                inputs.push(word);
+            }
+        });
+        for(let i=0;i<10;i++) inputs.push('');
+        return {command, inputs, opts};
     }
 
     function resolve_package_path(file_path, file_content, package_info) {
