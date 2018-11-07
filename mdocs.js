@@ -343,7 +343,7 @@ function mdocs(dir_path=process.cwd()) {
     }
 
     function getFileContent(path) {
-        return fs.readFileSync(path).toString();
+        return fs.readFileSync(require.resolve(path)).toString();
     }
 
     function flatten(arr, el) {
