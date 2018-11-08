@@ -285,7 +285,7 @@ function mdocs(dir_path=process.cwd()) {
         const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path) || '.';
         assert_internal(rel_path);
 
-        console.log(file_path, package_info.absolute_path, rel_path);
+     // console.log(file_path, package_info.absolute_path, rel_path);
 
         const regex_require = new RegExp("require\\('"+escapeRegexp(rel_path)+"'\\)", 'g');
         file_content = file_content.replace(regex_require, "require('"+package_info.name+"')");
