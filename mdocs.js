@@ -285,12 +285,12 @@ function mdocs(dir_path=process.cwd()) {
         const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path) || '.';
         assert_internal(rel_path);
 
-     // console.log(file_path, package_info.absolute_path, rel_path);
+        console.log(file_path, package_info.absolute_path, rel_path);
 
-        const regex_require = new RegExp("require\\('"+rel_path+"'\\)", 'g');
+        const regex_require = new RegExp("require\\('"+escapeRegexp(rel_path)+"'\\)", 'g');
         file_content = file_content.replace(regex_require, "require('"+package_info.name+"')");
 
-        const regex_import = new RegExp(" from '"+rel_path+"'", 'g');
+        const regex_import = new RegExp(" from '"+escapeRegexp(rel_path)+"'", 'g');
         file_content = file_content.replace(regex_import, " from '"+package_info.name+"'");
 
         return file_content;
