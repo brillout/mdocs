@@ -33,13 +33,13 @@ function mdocs(dir_path=process.cwd()) {
     const TEMPLATE_EXT = '.template.md';
 
     (() => {
-        const package_info = get_package_info();
+        const package_info = get_package_info(dir_path);
         const monorepo_package_info = get_monorepo_pacakge_info();
         assert_usage(package_info || monorepo_package_info);
 
         const git_info = get_git_info();
 
-        const templates = find_templates(git_info);
+        const templates = find_templates({package_info, monorepo_package_info});
 
         assert_usage(
             templates.length>0,
@@ -49,7 +49,7 @@ function mdocs(dir_path=process.cwd()) {
         templates
         .forEach(template => {
             add_menu(template, templates);
-            add_inline_code({template, package_info, monorepo_package_info, git_info});
+            add_inline_code({template, monorepo_package_info, git_info});
          // replace_package_paths(template);
             add_edit_note(template);
             write_content(template);
@@ -58,7 +58,7 @@ function mdocs(dir_path=process.cwd()) {
 
     return;
 
-    function get_package_info() {
+    function get_package_info(dir_path) {
         const package_json_path = find_up.sync('package.json', {cwd: dir_path});
         assert_internal(package_json_path, dir_path);
         const pkg_info = require(package_json_path);
@@ -190,11 +190,11 @@ function mdocs(dir_path=process.cwd()) {
 
     }
 
-    function add_inline_code({template, package_info, monorepo_package_info, git_info}) {
+    function add_inline_code({template, monorepo_package_info, git_info}) {
         template.content = apply_inline({
             content: template.content,
             context_path: template.template_path,
-            package_info,
+            package_info: template.package_info,
             monorepo_package_info,
             git_info,
         });
@@ -249,8 +249,7 @@ function mdocs(dir_path=process.cwd()) {
             });
 
             if( ! opts['--hide-source-path'] ) {
-                const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
-                assert_internal(repo_base);
+                const repo_base = get_repo_base({package_info, monorepo_package_info});
                 const code_path = path_module.relative(repo_base, file_path);
                 content__new += '// /'+code_path+'\n\n';
             }
@@ -259,6 +258,12 @@ function mdocs(dir_path=process.cwd()) {
         });
 
         return content__new;
+    }
+
+    function get_repo_base({package_info, monorepo_package_info}) {
+      const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
+      assert_internal(repo_base);
+      return repo_base;
     }
 
     function parseCommandLine(line) {
@@ -371,18 +376,22 @@ function mdocs(dir_path=process.cwd()) {
         );
     }
 
-    function find_templates(git_info) {
+    function find_templates({monorepo_package_info, package_info}) {
+        const repo_base = get_repo_base({package_info, monorepo_package_info});
         return (
-            findPackageFiles('*'+TEMPLATE_EXT, {cwd: dir_path})
+            findPackageFiles('*'+TEMPLATE_EXT, {cwd: repo_base})
             .map(template_path => {
                 assert_internal(template_path.endsWith(TEMPLATE_EXT));
+
+                const package_info = get_package_info(path_module.dirname(template_path));
+
                 let content = getFileContent(template_path);
 
                 const output_filename = get_token_argument('OUTPUT');
 
                 const dist_path = distify(template_path);
-                const dist_path__md_relative = make_relative_to_package_root(dist_path);
-                const template_path__md_relative = make_relative_to_package_root(template_path);
+                const dist_path__md_relative = make_relative_to_repo_base(dist_path);
+                const template_path__md_relative = make_relative_to_repo_base(template_path);
                 const filename_base = path_module.basename(template_path).split('.')[0];
 
                 const menu_indent = get_token_argument('MENU_INDENT');
@@ -398,6 +407,7 @@ function mdocs(dir_path=process.cwd()) {
 
                 return {
                     template_path,
+                    package_info,
                     content,
                     dist_path,
                     dist_path__md_relative,
@@ -422,9 +432,9 @@ function mdocs(dir_path=process.cwd()) {
                     }
                 }
 
-                function make_relative_to_package_root(file_path) {
-                    const file_path__relative = path_module.relative(git_info.absolute_path, file_path);
-                    assert_internal(!file_path__relative.startsWith('.'), git_info.absolute_path, file_path__relative, file_path);
+                function make_relative_to_repo_base(file_path) {
+                    const file_path__relative = path_module.relative(repo_base, file_path);
+                    assert_internal(!file_path__relative.startsWith('.'), repo_base, file_path__relative, file_path);
                     const file_path__md_relative = (
                         file_path__relative
                         .split(path_module.sep)
