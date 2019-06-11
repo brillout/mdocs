@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const assert_usage = require('reassert/usage');
-const assert_internal = require('reassert/internal');
-const assert = assert_internal;
+const assert = require('@brillout/reassert');
 const path_module = require('path');
 const find_up = require('find-up');
 const findPackageFiles = require('@brillout/find-package-files');
@@ -28,20 +26,21 @@ function is_cli() {
 }
 
 function mdocs(dir_path=process.cwd()) {
-    assert_usage(dir_path.startsWith('/'), dir_path);
+    assert.usage(dir_path.startsWith('/'), dir_path);
 
     const TEMPLATE_EXT = '.template.md';
 
     (() => {
         const package_info = get_package_info(dir_path);
         const monorepo_package_info = get_monorepo_pacakge_info();
-        assert_usage(package_info || monorepo_package_info);
+        assert.usage(package_info || monorepo_package_info);
 
         const git_info = get_git_info();
+        const repo_base = get_repo_base({package_info, monorepo_package_info});
 
-        const templates = find_templates({package_info, monorepo_package_info});
+        const templates = find_templates({repo_base});
 
-        assert_usage(
+        assert.usage(
             templates.length>0,
             "Can't find any `"+path_module.resolve(dir_path, "*.template.md")+"` file."
         );
@@ -49,7 +48,7 @@ function mdocs(dir_path=process.cwd()) {
         templates
         .forEach(template => {
             add_menu(template, templates);
-            add_inline_code({template, monorepo_package_info, git_info});
+            add_inline_code({template, monorepo_package_info, git_info, repo_base});
          // replace_package_paths(template);
             add_edit_note(template);
             write_content(template);
@@ -60,7 +59,7 @@ function mdocs(dir_path=process.cwd()) {
 
     function get_package_info(dir_path) {
         const package_json_path = find_up.sync('package.json', {cwd: dir_path});
-        assert_internal(package_json_path, dir_path);
+        assert.internal(package_json_path, dir_path);
         const pkg_info = require(package_json_path);
         const absolute_path = path_module.dirname(package_json_path);
         pkg_info.absolute_path = absolute_path;
@@ -190,17 +189,18 @@ function mdocs(dir_path=process.cwd()) {
 
     }
 
-    function add_inline_code({template, monorepo_package_info, git_info}) {
+    function add_inline_code({template, monorepo_package_info, git_info, repo_base}) {
         template.content = apply_inline({
             content: template.content,
             context_path: template.template_path,
             package_info: template.package_info,
             monorepo_package_info,
             git_info,
+            repo_base,
         });
     }
 
-    function apply_inline({content, context_path, package_info, monorepo_package_info, git_info}) {
+    function apply_inline({content, context_path, package_info, monorepo_package_info, git_info, repo_base}) {
         let content__new = '';
 
         const lines = content.split('\n');
@@ -219,21 +219,9 @@ function mdocs(dir_path=process.cwd()) {
             const {inputs, opts} = parseCommandLine(line);
 
             const file_path__spec = inputs[0];
-            assert_usage(file_path__spec, line);
+            assert.usage(file_path__spec, line);
 
-            const file_path = (
-                file_path__spec.startsWith('/') ? (
-                    path_module.join(
-                        git_info.absolute_path,
-                        file_path__spec,
-                    )
-                ) : (
-                    path_module.resolve(
-                        path_module.dirname(context_path),
-                        file_path__spec,
-                    )
-                )
-            );
+            const file_path = getFilePath({file_path__spec, git_info, context_path, repo_base});
 
             let file_content = getFileContent(file_path);
             file_content = file_content.replace(/\n+$/,'');
@@ -262,7 +250,7 @@ function mdocs(dir_path=process.cwd()) {
 
     function get_repo_base({package_info, monorepo_package_info}) {
       const repo_base = (monorepo_package_info||{}).absolute_path || (package_info||{}).absolute_path;
-      assert_internal(repo_base);
+      assert.internal(repo_base);
       return repo_base;
     }
 
@@ -288,7 +276,7 @@ function mdocs(dir_path=process.cwd()) {
         }
 
         const rel_path = path_module.relative(path_module.dirname(file_path), package_info.absolute_path) || '.';
-        assert_internal(rel_path);
+        assert.internal(rel_path);
 
      // console.log(file_path, package_info.absolute_path, rel_path);
 
@@ -347,6 +335,47 @@ function mdocs(dir_path=process.cwd()) {
         );
     }
 
+    function getFilePath({file_path__spec, git_info, context_path, repo_base}) {
+      assert.internal(file_path__spec.constructor===String);
+
+      if( !file_path__spec.includes('.') ){
+        file_path__spec += ".md";
+      }
+
+      let file_path;
+      if( !file_path__spec.includes('/') ){
+        file_path = (
+          findPackageFiles(
+            '*'+file_path__spec,
+            {cwd: repo_base},
+          )
+        );
+      } else {
+        if( file_path__spec.startsWith('/') ){
+          file_path = (
+            path_module.join(
+              git_info.absolute_path,
+              file_path__spec,
+            )
+          );
+        } else {
+          file_path = (
+            path_module.resolve(
+              path_module.dirname(context_path),
+              file_path__spec,
+            )
+          );
+        }
+      }
+
+   // The following line changes what is file path is shown when not using `--hide-source-path`
+   // file_path = require.resolve(file_path);
+
+      assert.usage(file_path, "Couldn't find "+file_path__spec);
+
+      return file_path;
+    }
+
     function getFileContent(path) {
         return fs.readFileSync(require.resolve(path)).toString();
     }
@@ -376,12 +405,11 @@ function mdocs(dir_path=process.cwd()) {
         );
     }
 
-    function find_templates({monorepo_package_info, package_info}) {
-        const repo_base = get_repo_base({package_info, monorepo_package_info});
+    function find_templates({repo_base}) {
         return (
             findPackageFiles('*'+TEMPLATE_EXT, {cwd: repo_base})
             .map(template_path => {
-                assert_internal(template_path.endsWith(TEMPLATE_EXT));
+                assert.internal(template_path.endsWith(TEMPLATE_EXT));
 
                 const package_info = get_package_info(path_module.dirname(template_path));
 
@@ -434,7 +462,7 @@ function mdocs(dir_path=process.cwd()) {
 
                 function make_relative_to_repo_base(file_path) {
                     const file_path__relative = path_module.relative(repo_base, file_path);
-                    assert_internal(!file_path__relative.startsWith('.'), repo_base, file_path__relative, file_path);
+                    assert.internal(!file_path__relative.startsWith('.'), repo_base, file_path__relative, file_path);
                     const file_path__md_relative = (
                         file_path__relative
                         .split(path_module.sep)
@@ -448,7 +476,6 @@ function mdocs(dir_path=process.cwd()) {
                     content = content_new;
                     return token_arg;
                 }
-
             })
         );
     }
