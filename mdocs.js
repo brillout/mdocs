@@ -224,11 +224,30 @@ function mdocs(dir_path=process.cwd()) {
             const file_path = getFilePath({file_path__spec, git_info, context_path, repo_base});
 
             let file_content = getFileContent(file_path);
+
             file_content = file_content.replace(/\n+$/,'');
+
             inputs.forEach((arg, i) => {
                 const argRegexp = new RegExp(escapeRegexp('!ARGUMENT-'+i), 'g');
                 file_content = file_content.replace(argRegexp, arg)
             });
+            file_content = (
+              file_content
+              .replace(
+                new RegExp(escapeRegexp('!ARGUMENTS'), 'g'),
+                inputs.slice(1).join(' ')
+              )
+            );
+
+            let hide_source_path = (() => {
+              const macroString = '!HIDE-SOURCE-PATH';
+              const file_lines = file_content.split('\n');
+
+              file_content = file_lines.filter(line => line!==macroString).join('\n');
+
+              return file_lines.includes(macroString);
+            })();
+
             file_content = apply_inline({
                 content: file_content,
                 context_path: file_path,
@@ -236,13 +255,18 @@ function mdocs(dir_path=process.cwd()) {
                 monorepo_package_info,
             });
 
-            if( ! opts['--hide-source-path'] ) {
+            file_content = (
+              resolve_package_path(file_path, file_content, package_info) + '\n'
+            );
+
+            hide_source_path = hide_source_path || !!opts['--hide-source-path'];
+            if( ! hide_source_path ) {
                 const repo_base = get_repo_base({package_info, monorepo_package_info});
                 const code_path = path_module.relative(repo_base, file_path);
                 content__new += '// /'+code_path+'\n\n';
             }
 
-            content__new += resolve_package_path(file_path, file_content, package_info) + '\n';
+            content__new += file_content;
         });
 
         return content__new;
@@ -266,7 +290,9 @@ function mdocs(dir_path=process.cwd()) {
                 inputs.push(word);
             }
         });
-        for(let i=0;i<10;i++) inputs.push('');
+
+     // for(let i=0;i<10;i++) inputs.push('');
+
         return {command, inputs, opts};
     }
 
@@ -344,12 +370,14 @@ function mdocs(dir_path=process.cwd()) {
 
       let file_path;
       if( !file_path__spec.includes('/') ){
-        file_path = (
+        const found = (
           findPackageFiles(
             '*'+file_path__spec,
             {cwd: repo_base},
           )
         );
+        assert.usage(found.length===1, {found, file_path__spec});
+        file_path = found[0];
       } else {
         if( file_path__spec.startsWith('/') ){
           file_path = (
@@ -370,8 +398,14 @@ function mdocs(dir_path=process.cwd()) {
 
    // The following line changes what is file path is shown when not using `--hide-source-path`
    // file_path = require.resolve(file_path);
+      try {
+        require.resolve(file_path);
+      } catch(err) {
+        console.error(err);
+        assert.usage(false,  "Can't find `"+file_path+"` (from `"+file_path__spec+"`)");
+      }
 
-      assert.usage(file_path, "Couldn't find "+file_path__spec);
+      assert.usage(file_path, "Can't find "+file_path__spec);
 
       return file_path;
     }
