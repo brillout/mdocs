@@ -215,7 +215,8 @@ function mdocs(dir_path=process.cwd()) {
         let newContent = template.content;
         Object.entries(vars)
         .forEach(([varName, varValue]) => {
-          newContent = newContent.replace(new RegExp(escapeRegexp('!VAR '+varName), 'g'), varValue);
+          newContent = newContent.replace(new RegExp(escapeRegexp('!VAR '+varName)+'\\b', 'g'), varValue);
+          newContent = newContent.replace(new RegExp(escapeRegexp('!VAR|LINK '+varName)+'\\b', 'g'), '<a href=#'+GithubId(varValue)+'>'+varValue+'</a>');
         });
         return newContent;
       }
@@ -588,4 +589,12 @@ function titlize(filename_base){
         )
         .join(' ')
     );
+}
+
+function GithubId(val) {
+	return val.toLowerCase().replace(/ /g,'-')
+		// single chars that are removed
+		.replace(/[`~!@#$%^&*()+=<>?,./:;"'|{}\[\]\\–—]/g, '')
+		// CJK punctuations that are removed
+		.replace(/[　。？！，、；：“”【】（）〔〕［］﹃﹄“”‘’﹁﹂—…－～《》〈〉「」]/g, '')
 }
