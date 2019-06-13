@@ -48,6 +48,7 @@ function mdocs(dir_path=process.cwd()) {
         templates
         .forEach(template => {
             add_menu(template, templates);
+            apply_variables(template);
             add_inline_code({template, monorepo_package_info, git_info, repo_base});
          // replace_package_paths(template);
             add_edit_note(template);
@@ -189,6 +190,36 @@ function mdocs(dir_path=process.cwd()) {
 
     }
 
+    function apply_variables(template) {
+      const vars = getVars();
+      template.content = applyVars();
+
+      return;
+
+      function getVars() {
+        const vars = {};
+        let lines = template.content.split('\n');
+        lines = lines.filter(line => {
+          if( !line.startsWith('!VAR ') ){
+            return true;
+          }
+          const [varName,...varValue] = line.split(' ').slice(1);
+          vars[varName] = varValue.join(' ');
+          return false;
+        });
+        template.content = lines.join('\n');
+        return vars;
+      }
+
+      function applyVars() {
+        let newContent = template.content;
+        Object.entries(vars)
+        .forEach(([varName, varValue]) => {
+          newContent = newContent.replace(new RegExp(escapeRegexp('!VAR '+varName), 'g'), varValue);
+        });
+        return newContent;
+      }
+    }
     function add_inline_code({template, monorepo_package_info, git_info, repo_base}) {
         template.content = apply_inline({
             content: template.content,
