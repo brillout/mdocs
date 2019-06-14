@@ -293,9 +293,12 @@ function mdocs(dir_path=process.cwd()) {
 
             hide_source_path = hide_source_path || !!opts['--hide-source-path'];
             if( ! hide_source_path ) {
+                /*
                 const repo_base = get_repo_base({package_info, monorepo_package_info});
                 const code_path = path_module.relative(repo_base, file_path);
                 content__new += '// /'+code_path+'\n\n';
+                */
+                content__new += '// '+file_path__spec+'\n\n';
             }
 
             content__new += file_content;
@@ -400,6 +403,7 @@ function mdocs(dir_path=process.cwd()) {
         file_path__spec += ".md";
       }
 
+      const base_dir = path_module.dirname(context_path);
       let file_path;
       if( !file_path__spec.includes('/') ){
         const found = (
@@ -421,24 +425,25 @@ function mdocs(dir_path=process.cwd()) {
         } else {
           file_path = (
             path_module.resolve(
-              path_module.dirname(context_path),
+              base_dir,
               file_path__spec,
             )
           );
         }
       }
 
-   // The following line changes what is file path is shown when not using `--hide-source-path`
-   // file_path = require.resolve(file_path);
       try {
-        require.resolve(file_path);
+        file_path = require.resolve(file_path);
       } catch(err) {
         console.error(err);
-        assert.usage(false,  "Can't find `"+file_path+"` (from `"+file_path__spec+"`)");
+        assert.usage(
+          false,
+          "Can't find `"+file_path__spec+"`.",
+          "Resolved to `"+file_path+"` from `"+base_dir+"`",
+        );
       }
 
-      assert.usage(file_path, "Can't find "+file_path__spec);
-
+      assert.internal(path_module.isAbsolute(file_path));
       return file_path;
     }
 
