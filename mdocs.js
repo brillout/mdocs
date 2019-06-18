@@ -217,6 +217,7 @@ function mdocs(dir_path=process.cwd()) {
         .forEach(([varName, varValue]) => {
           newContent = newContent.replace(new RegExp(escapeRegexp('!VAR '+varName)+'\\b', 'g'), varValue);
           newContent = newContent.replace(new RegExp(escapeRegexp('!VAR|LINK '+varName)+'\\b', 'g'), '<a href=#'+GithubId(varValue)+'>'+varValue+'</a>');
+          newContent = newContent.replace(new RegExp(escapeRegexp('!VAR|ANCHOR '+varName)+'\\b', 'g'), '#'+GithubId(varValue));
         });
         return newContent;
       }
