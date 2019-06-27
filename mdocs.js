@@ -467,7 +467,7 @@ function mdocs(dir_path=process.cwd()) {
                         padding,
                         '    WARNING, READ THIS.',
                         '    This is a computed file. Do not edit.',
-                        '    Edit `'+src_path+'` instead.',
+                        '    Instead, edit `'+src_path+'` and run `npm run docs` (or `yarn docs`).',
                         padding,
                     ].join('\n'))
                 ),
