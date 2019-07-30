@@ -241,7 +241,9 @@ function mdocs(dir_path=process.cwd()) {
         lines.forEach((line, i) => {
             const inline_token = '!INLINE';
 
-            if( ! line.startsWith(inline_token+' ') ) {
+            const spacePadding = line.match(/\s*/)[0];
+
+            if( ! line.startsWith(spacePadding+inline_token+' ') ) {
                 content__new += line;
                 if( i !== lines.length-1 ) {
                     content__new += '\n';
@@ -249,7 +251,7 @@ function mdocs(dir_path=process.cwd()) {
                 return;
             }
 
-            const {inputs, opts} = parseCommandLine(line);
+            const {inputs, opts} = parseCommandLine(line.slice(spacePadding.length));
 
             const file_path__spec = inputs[0];
             assert.usage(file_path__spec, line);
@@ -292,17 +294,30 @@ function mdocs(dir_path=process.cwd()) {
               resolve_package_path(file_path, file_content, package_info) + '\n'
             );
 
+            let inlineContent = '';
+
             hide_source_path = hide_source_path || !!opts['--hide-source-path'];
             if( ! hide_source_path ) {
                 /*
                 const repo_base = get_repo_base({package_info, monorepo_package_info});
                 const code_path = path_module.relative(repo_base, file_path);
-                content__new += '// /'+code_path+'\n\n';
+                inlineContent += '// /'+code_path+'\n\n';
                 */
-                content__new += '// '+file_path__spec+'\n\n';
+                inlineContent += '// '+file_path__spec+'\n\n';
             }
 
-            content__new += file_content;
+            inlineContent += file_content;
+
+            if( spacePadding ){
+              inlineContent = (
+                inlineContent
+                .split('\n')
+                .map(line => line==='' ? line : (spacePadding+line))
+                .join('\n')
+              );
+            }
+
+            content__new += inlineContent;
         });
 
         return content__new;
